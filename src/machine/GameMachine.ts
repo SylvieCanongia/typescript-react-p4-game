@@ -1,6 +1,8 @@
 import { createMachine } from 'xstate';
 import { createModel } from 'xstate/lib/model';
 import { GameEvents, GridState, Player } from '../types';
+import { chooseColorAction, joinGameAction, leaveGameAction, setCurrentPlayerAction } from './actions';
+import { canChooseColorGuard, canJoinGuard, canLeaveGuard, canStartGameGuard } from './guards';
 
 enum GameStates {
   // pending players
@@ -38,8 +40,9 @@ export const GameModel = createModel({
 })
 
 // Creates the machine and its config
-// Creating the GameMachine from the GameModel allows to get the types from the GameModel
+// Creating the GameMachine from the GameModel allows to get the types automatically from the GameModel
 export const GameMachine = GameModel.createMachine({
+  predictableActionArguments: true,
   id: 'game',
   // initial context
   context: GameModel.initialContext,
@@ -50,15 +53,26 @@ export const GameMachine = GameModel.createMachine({
       on: {
         // player can join a party
         join: {
+          cond: canJoinGuard,
+          // assign is an action that returns a particular context and do a treatment on the context
+          actions: [GameModel.assign(joinGameAction)],
           target: GameStates.LOBBY
         },
         leave: {
+          cond: canLeaveGuard,
+          actions: [GameModel.assign(leaveGameAction)],
           target: GameStates.LOBBY
         },
         chooseColor: {
+          cond: canChooseColorGuard,
+          actions: [GameModel.assign(chooseColorAction)],
           target: GameStates.LOBBY
         },
-        start: GameStates.PLAY
+        start: {
+          cond: canStartGameGuard,
+          target: GameStates.PLAY,
+          actions: [GameModel.assign(setCurrentPlayerAction)]
+        }
       }
     },
     [GameStates.PLAY]: {
